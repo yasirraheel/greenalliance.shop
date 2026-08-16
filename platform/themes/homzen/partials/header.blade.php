@@ -24,7 +24,8 @@
                         </nav>
                     </div>
                     <div class="header-account">
-                        @if (is_plugin_active('real-estate') && RealEstateHelper::isLoginEnabled())
+                        {{-- Hidden: Submit Property button (Uncomment or enable when needed) --}}
+                        @if (theme_option('enable_header_submit_property', false) && is_plugin_active('real-estate') && RealEstateHelper::isLoginEnabled())
                             <div class="flat-bt-top">
                                 <a class="tf-btn primary" href="{{ route('public.account.properties.index') }}">{{ __('Submit Property') }}</a>
                             </div>
@@ -51,7 +52,7 @@
                 </a>
             </div>
             <div class="bottom-canvas">
-                @if (is_plugin_active('real-estate') && RealEstateHelper::isLoginEnabled())
+                @if (theme_option('enable_header_submit_property', false) && is_plugin_active('real-estate') && RealEstateHelper::isLoginEnabled())
                     <div class="mobile-add-listing-wrapper">
                         <a href="{{ route('public.account.properties.index') }}" class="mobile-add-listing-btn">
                             <div class="add-listing-icon-wrapper">
@@ -64,7 +65,9 @@
                             <x-core::icon name="ti ti-arrow-right" class="add-listing-arrow" />
                         </a>
                     </div>
-
+                @endif
+                
+                @if (is_plugin_active('real-estate') && RealEstateHelper::isLoginEnabled())
                     @auth('account')
                         @php $customer = auth('account')->user(); @endphp
                         <div class="mobile-user-wrapper">
