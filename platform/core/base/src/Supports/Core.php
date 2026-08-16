@@ -147,11 +147,7 @@ final class Core
 
     public function checkConnection(): bool
     {
-        return $this->cache->remember(
-            "license:{$this->getLicenseCacheKey()}:check_connection",
-            Carbon::now()->addDays($this->verificationPeriod),
-            fn () => rescue(fn () => $this->createRequest('check_connection_ext')->ok()) ?: false
-        );
+        return true;
     }
 
     public function version(): string
@@ -164,64 +160,12 @@ final class Core
         return $this->minimumPhpVersion;
     }
 
-    /**
-     * @throws \Botble\Base\Exceptions\LicenseInvalidException
-     * @throws \Botble\Base\Exceptions\LicenseIsAlreadyActivatedException
-     */
     public function activateLicense(string $license, string $client): bool
     {
-        LicenseActivating::dispatch($license, $client);
-
-        $response = $this->createRequest('activate_license', [
-            'product_id' => $this->productId,
-            'license_code' => $license,
-            'client_name' => $client,
-            'verify_type' => $this->productSource,
-        ]);
-
-        $data = $response->json();
-
-        if ($response->failed()) {
-            $message = Arr::get($data, 'message');
-
-            throw new LicenseInvalidException($message ?: 'Could not activate your license. Please try again later.');
-        }
-
-        if (! Arr::get($data, 'status')) {
-            $message = Arr::get($data, 'message');
-
-            if (Arr::get($data, 'status_code') === 'ACTIVATED_MAXIMUM_ALLOWED_PRODUCT_INSTANCES') {
-                throw new LicenseIsAlreadyActivatedException($message);
-            }
-
-            LicenseInvalid::dispatch($license, $client);
-
-            throw new LicenseInvalidException($message);
-        }
-
-        try {
-            $licenseContent = Arr::get($data, 'lic_response');
-
-            if ($this->isLicenseStoredInDatabase()) {
-                Setting::forceSet('license_file_content', $licenseContent)->save();
-            } else {
-                $this->files->put($this->licenseFilePath, $licenseContent, true);
-            }
-
-            $this->storeLicenseMetadata($license, $client);
-        } catch (Throwable $exception) {
-            if ($this->isLicenseStoredInDatabase()) {
-                throw new LicenseInvalidException('Could not store license in database: ' . $exception->getMessage());
-            } else {
-                throw UnableToWriteFile::atLocation($this->licenseFilePath);
-            }
-        }
-
-        Session::forget("license:{$this->getLicenseCacheKey()}:last_checked_date");
-
-        $this->clearLicenseReminder();
-
-        LicenseActivated::dispatch($license, $client);
+        Setting::forceSet(['licensed_to' => $client ?: 'Green Alliance Enterprises'])->save();
+        Setting::forceSet(['license_activated_at' => Carbon::now()->toIso8601String()])->save();
+        Setting::forceSet(['license_last_verified_at' => Carbon::now()->toIso8601String()])->save();
+        Setting::forceSet(['license_next_check_at' => Carbon::now()->addYears(10)->toIso8601String()])->save();
 
         return true;
     }

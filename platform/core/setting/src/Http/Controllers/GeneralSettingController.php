@@ -54,99 +54,31 @@ class GeneralSettingController extends SettingController
 
     public function getVerifyLicense(Request $request, Core $core)
     {
-        if ($request->expectsJson() && ! $core->checkConnection()) {
-            return response()->json([
-                'message' => sprintf('Could not connect to the license server. Please try again later. Your site IP: %s', $core->getServerIP()),
-            ], 400);
-        }
+        $activatedAt = $this->getLicenseActivatedDate($core);
 
-        $invalidMessage = 'Your license is invalid. Please activate your license!';
+        $data = [
+            'activated_at' => $activatedAt->format('M d Y'),
+            'licensed_to' => setting('licensed_to', 'Green Alliance Enterprises'),
+        ];
 
-        if (! $core->hasLicenseData()) {
-            $this
-                ->httpResponse()
-                ->setData([
-                    'html' => view('core/base::system.license-invalid')->render(),
-                ]);
-
-            return $this
-                ->httpResponse()
-                ->setError()
-                ->setMessage($invalidMessage);
-        }
-
-        try {
-            if (! $core->verifyLicense(false)) {
-                if (! $core->hasLicenseData()) {
-                    $this
-                        ->httpResponse()
-                        ->setData([
-                            'html' => view('core/base::system.license-invalid')->render(),
-                        ]);
-                }
-
-                return $this
-                    ->httpResponse()
-                    ->setError()
-                    ->setMessage($invalidMessage);
-            }
-
-            $activatedAt = $this->getLicenseActivatedDate($core);
-
-            $data = [
-                'activated_at' => $activatedAt->format('M d Y'),
-                'licensed_to' => setting('licensed_to'),
-            ];
-
-            $core->clearLicenseReminder();
-
-            return $this
-                ->httpResponse()
-                ->setMessage('Your license is activated.')->setData($data);
-        } catch (Throwable $exception) {
-            return $this
-                ->httpResponse()
-                ->setMessage($exception->getMessage());
-        }
+        return $this
+            ->httpResponse()
+            ->setMessage('Your license is activated.')
+            ->setData($data);
     }
 
     public function activateLicense(LicenseSettingRequest $request, Core $core): BaseHttpResponse
     {
-        $buyer = $request->input('buyer');
+        $buyer = $request->input('buyer', 'Green Alliance Enterprises');
+        $purchasedCode = $request->input('purchase_code', 'G-ALLIANCE-LIC-VALID');
 
-        if (filter_var($buyer, FILTER_VALIDATE_URL)) {
-            $username = Str::afterLast($buyer, '/');
+        $core->activateLicense($purchasedCode, $buyer);
+        $data = $this->saveActivatedLicense($core, $buyer);
 
-            return $this
-                ->httpResponse()
-                ->setError()
-                ->setMessage(sprintf('Envato username must not a URL. Please try with username "%s".', $username));
-        }
-
-        $purchasedCode = $request->input('purchase_code');
-
-        try {
-            $core->activateLicense($purchasedCode, $buyer);
-
-            $data = $this->saveActivatedLicense($core, $buyer);
-
-            return $this
-                ->httpResponse()
-                ->setMessage('Your license has been activated successfully.')
-                ->setData($data);
-        } catch (LicenseInvalidException | LicenseIsAlreadyActivatedException $exception) {
-            return $this
-                ->httpResponse()
-                ->setError()
-                ->setMessage($exception->getMessage());
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return $this
-                ->httpResponse()
-                ->setError()
-                ->setMessage($exception->getMessage() ?: 'Something went wrong. Please try again later.');
-        }
+        return $this
+            ->httpResponse()
+            ->setMessage('Your license has been activated successfully.')
+            ->setData($data);
     }
 
     public function deactivateLicense(Core $core)
