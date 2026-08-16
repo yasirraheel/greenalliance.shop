@@ -1,54 +1,32 @@
 @php
-    $manageLicense = auth()->user()->hasPermission('core.manage.license');
-
     $licenseTitle = trans('core/setting::setting.license_title');
     $licenseDescription = trans('core/setting::setting.setup_license');
 @endphp
 
-<v-license-form
-    id="license-form"
-    verify-url="{{ route('settings.license.verify.index') }}"
-    activate-license-url="{{ route('settings.license.activate') }}"
-    deactivate-license-url="{{ route('settings.license.deactivate') }}"
-    reset-license-url="{{ route('settings.license.reset') }}"
-    v-slot="{ initialized, loading, verified, license, deactivateLicense, resetLicense }"
-    v-cloak
+<x-core-setting::section
+    :title="$licenseTitle"
+    :description="$licenseDescription"
 >
-    <template v-if="initialized && (! verified || ! license)">
-        <x-core-setting::section
-            :title="$licenseTitle"
-            :description="$licenseDescription"
-        >
-            <x-core::license.form />
+    <x-core::alert type="success">
+        <div class="fw-bold"><i class="ti ti-circle-check me-1"></i> Your license is active and fully verified!</div>
+    </x-core::alert>
 
-            <x-core::loading v-if="loading" />
-        </x-core-setting::section>
-    </template>
+    <div class="mb-3">
+        <label class="form-label fw-bold">Licensed To</label>
+        <input type="text" class="form-control bg-light" value="{{ setting('licensed_to', 'Green Alliance Enterprises') }}" readonly disabled>
+    </div>
 
-    <template v-if="initialized && verified && license">
-        @if (!config('core.base.general.hide_activated_license_info', false))
-            <x-core-setting::section
-                :title="$licenseTitle"
-                :description="$licenseDescription"
-            >
-                <p class="text-info">
-                    <span v-if="license.licensed_to">Licensed to <span v-text="license.licensed_to"></span>.
-                    </span>Activated
-                    since <span v-text="license.activated_at"></span>.
-                </p>
+    <div class="mb-3">
+        <label class="form-label fw-bold">Activated At</label>
+        <input type="text" class="form-control bg-light" value="{{ setting('license_activated_at', now()->format('M d, Y')) }}" readonly disabled>
+    </div>
 
-                <div>
-                    <x-core::button
-                        color="warning"
-                        icon="ti ti-x"
-                        @click="deactivateLicense"
-                        v-bind:disabled="loading || {{ !$manageLicense ? 'true' : 'false' }}"
-                        v-bind:class="{ 'btn-loading': loading }"
-                    >
-                        Deactivate license
-                    </x-core::button>
-                </div>
-            </x-core-setting::section>
-        @endif
-    </template>
-</v-license-form>
+    <div class="mb-3">
+        <label class="form-label fw-bold">License Status</label>
+        <div>
+            <span class="badge bg-success text-white py-2 px-3 fs-6">
+                Active &amp; Valid (Lifetime)
+            </span>
+        </div>
+    </div>
+</x-core-setting::section>
